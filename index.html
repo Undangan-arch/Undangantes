@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Undangan - Fixed Canvas</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&display=swap');
+
+  /*
+  =====================================
+  RESPONSIVE SETUP
+  =====================================
+  */
+  :root{
+    --scale: 0.3981481481; /* Default/Fallback Scale */
+  }
+
+  /* Body dibuat full height, margin, dan padding nol, dan menggunakan Flexbox untuk centering */
+  html,body{
+    height:100%;           /* Memastikan body memenuhi tinggi viewport */
+    width: 100%;            
+    margin:0; 
+    padding: 0;             
+    background:#f7e8da; /* **PERUBAHAN: Warna background diubah menjadi krem pucat/peach** */
+    display:flex; 
+    align-items:center;     /* CENTER Vertical */
+    justify-content:center; /* CENTER Horizontal */
+    overflow: hidden;       /* Mencegah scroll pada body */
+  }
+
+  /*
+  STAGE: Kontainer utama. Dimensi diatur dinamis oleh JavaScript.
+  */
+  .stage{
+    width: auto;              /* Dimensi diatur oleh JS */
+    height: auto;             /* Dimensi diatur oleh JS */
+    margin:0;
+    overflow:hidden;
+    box-shadow: none;
+    border-radius:0;
+    background:transparent;
+    position:relative;
+  }
+
+  /* CANVAS: Area konten asli (1080x1920) yang diskalakan.
+  */
+  .canvas{
+    width:1080px;
+    height:1920px;
+    transform: scale(var(--scale));
+    transform-origin: top left;
+    position: relative;
+    overflow: hidden;
+    background: transparent;
+  }
+
+  /*
+  =====================================
+  ANIMASI KEYFRAMES
+  =====================================
+  */
+  @keyframes slideInLeft {
+    from { transform: translateX(-100%) rotate(10deg); opacity: 0; }
+    to { transform: translateX(0) rotate(10deg); opacity: 0.95; }
+  }
+  @keyframes slideInRight {
+    from { transform: translateX(100%) rotate(-15deg); opacity: 0; }
+    to { transform: translateX(0) rotate(-15deg); opacity: 0.95; }
+  }
+  @keyframes slideInBottom {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: none; opacity: 0.95; }
+  }
+  @keyframes zoomIn {
+    0% { transform: scale(0.5) translateX(-50%) rotate(0deg); opacity: 0; }
+    100% { transform: scale(1) translateX(-50%) rotate(0deg); opacity: 1; }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes gentleFloat {
+    0% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(0.5deg); }
+    100% { transform: translateY(0px) rotate(0deg); }
+  }
+
+
+  /* background (full canvas) */
+  .bg {
+    position:absolute;
+    z-index:1;
+    left:0; top:0;
+    width:1080px;
+    height:1920px;
+    object-fit:cover;
+    display:block;
+  }
+
+  /* Title image (The-wedd) - letakkan sesuai desain */
+  .title {
+    position:absolute;
+    z-index:6;
+    left:50%;
+    top:150px;
+    transform:translateX(-50%);
+    width:760px;
+    height: 100px;
+    pointer-events:none;
+    opacity: 1; /* TIDAK ADA ANIMASI */
+    background-image: url("https://www.dropbox.com/scl/fi/gmf15rqn7t7f4dxpokt55/The-wedd.png?rlkey=xndnbr5nr70gikijcrpuhoq23&dl=1");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+  }
+
+  /* Foto pasangan */
+  .foto {
+    position:absolute;
+    z-index:8;
+    left:50%;
+    top:340px; 
+    transform: translateX(-50%) rotate(0deg); 
+    width:700px;
+    box-shadow: none;                      
+    border-radius: 4px;                      
+    pointer-events:none;
+    /* Animasi: Zoom In */
+    animation: zoomIn 0.8s ease-out 0.5s forwards; 
+    opacity: 0; 
+  }
+  
+  /* Tombol Buka Undangan (POSISI BARU: top: 1500px) */
+  .open-button {
+    position:absolute;
+    z-index:9;
+    left:50%;
+    top: 1500px; 
+    transform: translateX(-50%);
+    padding: 20px 40px;
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 50px;
+    font-weight: 600;
+    color: #4b4b4b; /* Teks agak gelap */
+    background-color: transparent;
+    border: 3px solid #b3a38e; /* Border warna emas/krem */
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    opacity: 0; /* Mulai tersembunyi */
+    transition: background-color 0.3s, transform 0.1s;
+    /* Animasi Masuk: Muncul setelah Foto (delay 1.5s) */
+    animation: fadeIn 0.8s ease-out 1.5s forwards; 
+  }
+
+  .open-button:hover {
+    background-color: #f0f0f0;
+  }
+  .open-button:active {
+    transform: translateX(-50%) scale(0.98);
+  }
+
+  /* Ornamen - posisikan manual dengan koordinat canvas */
+  /* Ornamen atas kiri (MENGGUNAKAN ORNAMEN 2 - Bunga Lily) */
+  .orn1 {
+    position:absolute; z-index:7;
+    top:0px; left:0px;
+    width:280px;
+    opacity:0;
+    pointer-events:none;
+    /* Animasi Masuk: Slide dari kiri */
+    animation: slideInLeft 0.8s ease-out 0.2s forwards,
+               gentleFloat 4s ease-in-out 1s infinite alternate; /* Animasi Gerak Berulang */
+  }
+  /* Ornamen atas kanan (MENGGUNAKAN ORNAMEN 3 - Garis Bayangan) */
+  .orn2 {
+    position:absolute; z-index:7;
+    top:0px; right:0px;
+    width:260px;
+    opacity:0;
+    pointer-events:none;
+    /* Animasi Masuk: Slide dari kanan */
+    animation: slideInRight 0.8s ease-out 0.4s forwards,
+               gentleFloat 4.5s ease-in-out 1.2s infinite alternate; /* Animasi Gerak Berulang */
+  }
+  /* Ornamen bawah kiri (MENGGUNAKAN ORNAMEN 1 - Bunga Penuh) */
+  .orn3 {
+    position:absolute; z-index:7;
+    bottom:0px; left:0px;
+    width:500px;
+    opacity:0;
+    pointer-events:none;
+    transform: none;
+    /* Animasi Masuk: Slide dari bawah */
+    animation: slideInBottom 0.8s ease-out 0.6s forwards,
+               gentleFloat 5s ease-in-out 1.4s infinite alternate; /* Animasi Gerak Berulang */
+  }
+  /* Ornamen bawah kanan (MENGGUNAKAN ORNAMEN 4 - Garis Halus) */
+  .orn4 {
+    position:absolute; z-index:7;
+    bottom:0px; right:0px;      
+    width:1080px;               
+    opacity:0;
+    pointer-events:none;
+    display: block;
+    /* Animasi Masuk: Slide dari bawah */
+    animation: slideInBottom 0.8s ease-out 0.7s forwards,
+               gentleFloat 3.5s ease-in-out 1.6s infinite alternate; /* Animasi Gerak Berulang */
+  }
+
+  /* Menambahkan kelas 'hidden' untuk menyembunyikan elemen saat tombol diklik */
+  .hidden {
+      display: none !important;
+  }
+</style>
+</head>
+<body>
+
+  <div class="stage">
+    <div class="canvas">
+      
+      <!-- Kontainer untuk semua elemen cover agar mudah disembunyikan -->
+      <div id="cover-screen">
+          
+          <!-- BACKGROUND (gunakan link Dropbox dl=1 supaya langsung load) -->
+          <img class="bg"
+               src="https://www.dropbox.com/scl/fi/ci39vmbiz0cpj6mirauu5/background.png?rlkey=90da27j5gkxm7iem7f8c14osb&dl=1"
+               alt="background">
+
+          <!-- TITLE (png yang kamu beri) -->
+          <div class="title" role="img" aria-label="The Wedding Of"></div>
+
+          <!-- FOTO pasangan (tetap gunakan file Foto.png) -->
+          <img class="foto"
+               src="https://www.dropbox.com/scl/fi/wyb6dkqiagsah0zbaz6va/Foto.png?rlkey=va5eakwgpaln93w4qsyvwlon8&dl=1"
+               alt="foto">
+          
+          <!-- TOMBOL BUKA UNDANGAN (POSISI BARU: top: 1500px) -->
+          <button class="open-button" onclick="openInvitation()">Buka Undangan</button>
+          
+          <!-- ORNAMEN: PERHATIKAN LOKASI FILE SUDAH DITUKAR SESUAI PERMINTAAN TERBARU -->
+          <!-- Ornamen 1 (bunga penuh) sekarang di bawah (orn3) -->
+          <img class="orn3" src="https://www.dropbox.com/scl/fi/z5gcmoz2zyj3vj89jil5g/ornamen-1.png?rlkey=4heaijcwmf4isrh2ejy1roacg&dl=1" alt="orn1">
+
+          <!-- Ornamen 2 (bunga lily) sekarang di kiri atas (orn1) -->
+          <img class="orn1" src="https://www.dropbox.com/scl/fi/kmf56wu0f0uq2fr85facc/ornamen-2.png?rlkey=qumxpm6v4yd6g5c25fl2frdcc&dl=1" alt="orn2">
+
+          <!-- Ornamen 3 (bayangan/garis) sekarang di kanan atas (orn2) -->
+          <img class="orn2" src="https://www.dropbox.com/scl/fi/0c5bh4g2fk0i9g93pc82f/ornamen-3.png?rlkey=ml3d1l0ldpdsejwsgwqvvui5u&dl=1" alt="orn3">
+
+          <!-- Ornamen 4 (garis halus) di kanan bawah (orn4) -->
+          <img class="orn4" src="https://www.dropbox.com/scl/fi/pi8l5wohwa1p4xrfkt912/ornamen-4.png?rlkey=lln0a8edd7dn62iq7zdxam086&dl=1" alt="orn4">
+
+      </div>
+      
+      <!-- Konten Undangan Utama (Saat ini kosong, akan muncul setelah tombol diklik) -->
+      <div id="main-content" class="hidden">
+          <!-- Di sini adalah tempat untuk Konten Undangan Utama (misalnya detail acara, nama mempelai, dll.) -->
+          <h1 style="font-family: 'Cormorant Garamond', serif; font-size: 80px; text-align: center; margin-top: 500px;">Selamat Datang!</h1>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Konstanta lebar asli canvas
+    const ORIGINAL_CANVAS_WIDTH = 1080; 
+    const ORIGINAL_CANVAS_HEIGHT = 1920; 
+
+    // Fungsi untuk menghitung dan mengatur skala agar full screen
+    function setScale() {
+        // Ambil dimensi viewport saat ini
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+
+        // Hitung rasio untuk lebar dan tinggi
+        const ratioX = viewportWidth / ORIGINAL_CANVAS_WIDTH;
+        const ratioY = viewportHeight / ORIGINAL_CANVAS_HEIGHT;
+
+        // Gunakan rasio TERKECIL untuk memastikan SELURUH konten muat di layar
+        const scaleFactor = Math.min(ratioX, ratioY);
+
+        // 1. Terapkan skala ke CSS variable
+        document.documentElement.style.setProperty('--scale', scaleFactor);
+
+        // 2. Set dimensi Stage ke ukuran yang diskalakan agar bisa di-center oleh CSS Flexbox
+        const scaledWidth = ORIGINAL_CANVAS_WIDTH * scaleFactor;
+        const scaledHeight = ORIGINAL_CANVAS_HEIGHT * scaleFactor;
+        
+        const stage = document.querySelector('.stage');
+        if (stage) {
+            stage.style.width = `${scaledWidth}px`;
+            stage.style.height = `${scaledHeight}px`;
+        }
+    }
+
+    // Panggil fungsi saat dokumen dimuat dan saat ukuran layar diubah
+    window.onload = setScale;
+    window.onresize = setScale;
+    
+    // Fungsi untuk membuka undangan
+    function openInvitation() {
+      // 1. Sembunyikan cover screen
+      const cover = document.getElementById('cover-screen');
+      if (cover) {
+        // Transisi opacity untuk efek fade out
+        cover.style.transition = 'opacity 0.5s ease-out';
+        cover.style.opacity = 0;
+        
+        // Sembunyikan setelah transisi
+        setTimeout(() => {
+            cover.classList.add('hidden');
+            // Pastikan scroll kembali diizinkan setelah cover hilang jika konten utama ada
+            document.body.style.overflow = 'auto'; 
+        }, 500); 
+      }
+      
+      // 2. Tampilkan konten utama
+      const mainContent = document.getElementById('main-content');
+      if (mainContent) {
+        mainContent.classList.remove('hidden');
+        mainContent.style.opacity = 0;
+        // Transisi fade in ke konten utama
+        setTimeout(() => {
+            mainContent.style.transition = 'opacity 1s ease-in';
+            mainContent.style.opacity = 1;
+        }, 500); 
+      }
+    }
+  </script>
+
+</body>
+</html>
